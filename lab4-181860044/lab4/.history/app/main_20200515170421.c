@@ -33,6 +33,7 @@ int uEntry(void) {
 			i--;
 			printf("Child Process: %d, %d\n", data, data1);
 			write(SH_MEM, (uint8_t *)&data, 4, 0); // define SH_MEM 3
+			printf("%d\n",(uint32_t)&data);
 			data += data1;
 			sleep(128);
 		}
@@ -42,6 +43,7 @@ int uEntry(void) {
 			i--;
 			read(SH_MEM, (uint8_t *)&data1, 4, 0);
 			printf("Father Process: %d, %d\n", data, data1);
+			printf("%d\n",(uint32_t)&data);
 			sleep(128);
 		}
 		exit();

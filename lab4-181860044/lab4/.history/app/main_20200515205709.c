@@ -34,6 +34,7 @@ int uEntry(void) {
 			printf("Child Process: %d, %d\n", data, data1);
 			write(SH_MEM, (uint8_t *)&data, 4, 0); // define SH_MEM 3
 			data += data1;
+			printf("data1=%d\n",data1);
 			sleep(128);
 		}
 	exit();

@@ -1,5 +1,6 @@
 #include "x86.h"
 #include "device.h"
+#include<memory.h>
 
 #define SYS_WRITE 0
 #define SYS_FORK 1
@@ -256,17 +257,17 @@ void syscallWriteStdOut(struct TrapFrame *tf) {
 
 void syscallWriteShMem(struct TrapFrame *tf) {
 	// TODO in lab4
-	int sel = tf->ds;
 	int i = 0;
-	uint8_t *buffer = (uint8_t *)tf->edx;
+	//putString("Write:");
+	uint32_t buffer = tf->edx;
+	//putInt(buffer);
 	int size = tf->ebx;
 	int index = tf->esi;
-	uint8_t *dst = &shMem[index];
-	asm volatile("movw %0, %%es"::"m"(sel));
-	for (i = 0; i < size && index+i < MAX_SHMEM_SIZE; i++) {
-		asm volatile("movb %%es:(%1), %0":"=r"(*dst):"r"(buffer + i));
-		dst++;
+	for(; i<size && index+i < MAX_SHMEM_SIZE; ++i){
+		shMem[index + i] = i;
 	}
+	//putInt(shMem[index]);
+	memcpy(&shMem[index],&buffer,size);
 	pcb[current].regs.eax = i;
 	return;
 }
@@ -329,16 +330,17 @@ void syscallReadStdIn(struct TrapFrame *tf) {
 
 void syscallReadShMem(struct TrapFrame *tf) {
 	// TODO in lab4
-	int i = 0;
-	int sel = tf->ds;
-	uint8_t *buffer = (uint8_t *)tf->edx;
+	/* */int i = 0;
+	putString("Read:");
+	uint32_t buffer = tf->edx;
 	int size = tf->ebx;
 	int index = tf->esi;
-	uint8_t *src = &shMem[index];
-	asm volatile("movw %0, %%es"::"m"(sel));
-	for (i = 0; i < size && index+i < MAX_SHMEM_SIZE; i++) {
-		asm volatile("movb %0, %%es:(%1)"::"r"(*(src + i)),"r"(buffer + i));
+	for(; i<size && index+i < MAX_SHMEM_SIZE; ++i){
+		buffer = shMem[index + i];
 	}
+	//putInt(*buffer);
+	putInt((int)shMem[index]);
+	memcpy(&buffer,&shMem[index],size);
 	pcb[current].regs.eax = i;
 	return;
 }

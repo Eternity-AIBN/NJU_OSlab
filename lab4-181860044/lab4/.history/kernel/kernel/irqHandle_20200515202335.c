@@ -262,11 +262,24 @@ void syscallWriteShMem(struct TrapFrame *tf) {
 	int size = tf->ebx;
 	int index = tf->esi;
 	uint8_t *dst = &shMem[index];
-	asm volatile("movw %0, %%es"::"m"(sel));
+	//for(; i<size && index+i < MAX_SHMEM_SIZE; ++i){
+	//	*dst++ = *buffer++;
+	//}
+	int tmp = sel|0x11;
+	asm volatile("movw %%ds, %0"::"m"(sel));
+	asm volatile("movw %0, %%ds"::"m"(tmp));
+	uint8_t ut;
+	//asm volatile("movw %0, %%es"::"m"(sel));
 	for (i = 0; i < size && index+i < MAX_SHMEM_SIZE; i++) {
-		asm volatile("movb %%es:(%1), %0":"=r"(*dst):"r"(buffer + i));
+		asm volatile("movw %0, %%ds"::"m"(tmp));
+		asm volatile("movb %%ds:(%1), %0":"=r"(ut):"r"(buffer + i));
+		asm volatile("movw %0, %%ds"::"m"(sel));
+		//asm volatile("movb %%es:(%1), %0":"=r"(dst):"r"(buffer + i));
+		*dst = ut;
 		dst++;
 	}
+	putString("Write: ");
+	putInt(shMem[index]);
 	pcb[current].regs.eax = i;
 	return;
 }
@@ -335,9 +348,14 @@ void syscallReadShMem(struct TrapFrame *tf) {
 	int size = tf->ebx;
 	int index = tf->esi;
 	uint8_t *src = &shMem[index];
+	putString("Read: ");
+	putInt(shMem[index]);
+	//for(; i<size && index+i < MAX_SHMEM_SIZE; ++i){
+	//	*buffer++ = *src++;
+	//}
 	asm volatile("movw %0, %%es"::"m"(sel));
 	for (i = 0; i < size && index+i < MAX_SHMEM_SIZE; i++) {
-		asm volatile("movb %0, %%es:(%1)"::"r"(*(src + i)),"r"(buffer + i));
+		asm volatile("movb %0, %%es:(%1)"::"r"(src + i),"r"(buffer + i));
 	}
 	pcb[current].regs.eax = i;
 	return;

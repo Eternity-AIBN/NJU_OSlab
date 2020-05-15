@@ -259,12 +259,17 @@ void syscallWriteShMem(struct TrapFrame *tf) {
 	int sel = tf->ds;
 	int i = 0;
 	uint8_t *buffer = (uint8_t *)tf->edx;
+	uint32_t a = *(buffer);
+	putInt(a);
 	int size = tf->ebx;
 	int index = tf->esi;
 	uint8_t *dst = &shMem[index];
+	//for(; i<size && index+i < MAX_SHMEM_SIZE; ++i){
+	//	*dst++ = *buffer++;
+	//}
 	asm volatile("movw %0, %%es"::"m"(sel));
 	for (i = 0; i < size && index+i < MAX_SHMEM_SIZE; i++) {
-		asm volatile("movb %%es:(%1), %0":"=r"(*dst):"r"(buffer + i));
+		asm volatile("movb %%es:(%1), %0":"=r"(dst):"r"(buffer + i));
 		dst++;
 	}
 	pcb[current].regs.eax = i;
@@ -335,9 +340,12 @@ void syscallReadShMem(struct TrapFrame *tf) {
 	int size = tf->ebx;
 	int index = tf->esi;
 	uint8_t *src = &shMem[index];
+	//for(; i<size && index+i < MAX_SHMEM_SIZE; ++i){
+	//	*buffer++ = *src++;
+	//}
 	asm volatile("movw %0, %%es"::"m"(sel));
 	for (i = 0; i < size && index+i < MAX_SHMEM_SIZE; i++) {
-		asm volatile("movb %0, %%es:(%1)"::"r"(*(src + i)),"r"(buffer + i));
+		asm volatile("movb %0, %%es:(%1)"::"r"(src + i),"r"(buffer + i));
 	}
 	pcb[current].regs.eax = i;
 	return;
