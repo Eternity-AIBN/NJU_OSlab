@@ -295,11 +295,8 @@ void syscallReadStdIn(struct TrapFrame *tf) {
 		int i = 0;
 		char character = 0;
 		asm volatile("movw %0, %%es"::"m"(sel));
-		for (i = 0; i < size && bufferHead!=bufferTail; i++) {
-			character = getChar(keyBuffer[bufferHead]);
-			bufferHead = (bufferHead + 1) % MAX_KEYBUFFER_SIZE;
-			asm volatile("movb %0, %%es:(%1)"::"r"(character),"r"(str + i));
-		}
+		asm volatile("movb %0, %%es:(%1)"::"r"(character),"r"(str + i));
+
 
 		pcb[current].regs.eax = i;
 	}
