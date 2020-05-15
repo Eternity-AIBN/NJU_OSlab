@@ -279,7 +279,6 @@ void syscallRead(struct TrapFrame *tf) {
 void syscallReadStdIn(struct TrapFrame *tf) {
 	// TODO in lab4
 	if(dev[STD_IN].value==0){  
-		//putString("Be blocked\n");
 		//Block the current process on dev[STD_IN]
 		pcb[current].blocked.next = dev[STD_IN].pcb.next;
  		pcb[current].blocked.prev = &(dev[STD_IN].pcb);
@@ -290,9 +289,9 @@ void syscallReadStdIn(struct TrapFrame *tf) {
 		pcb[current].sleepTime = -1; //Must be a value that <= 0, otherwise the blocked process may be woken up in TimeHandle
 		asm volatile("int $0x20");
 
-		//putString("Wake up\n");
 		int sel = tf->ds;
 		char *str = (char *)tf->edx;
+		putString(str);
 		int size = tf->ebx;
 		int i = 0;
 		char character = 0;
@@ -301,12 +300,9 @@ void syscallReadStdIn(struct TrapFrame *tf) {
 			character = getChar(keyBuffer[bufferHead]);
 			putChar(character);
 			bufferHead = (bufferHead + 1) % MAX_KEYBUFFER_SIZE;
-			if(character!=0){
-				asm volatile("movb %0, %%es:(%1)"::"r"(character),"r"(str + i));
-			}
-			else i--;
+			asm volatile("movb %0, %%es:(%1)"::"r"(character),"r"(str + i));
 		}
-		asm volatile("movb $0x00, %%es:(%0)"::"r"(str+i));
+
 		pcb[current].regs.eax = i;
 	}
 	else{  //At one time, there is only one process can be blocked on dev[STD_IN]

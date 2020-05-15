@@ -306,7 +306,8 @@ void syscallReadStdIn(struct TrapFrame *tf) {
 			}
 			else i--;
 		}
-		asm volatile("movb $0x00, %%es:(%0)"::"r"(str+i));
+		str[i] = '\0';
+		//putString(str);
 		pcb[current].regs.eax = i;
 	}
 	else{  //At one time, there is only one process can be blocked on dev[STD_IN]
