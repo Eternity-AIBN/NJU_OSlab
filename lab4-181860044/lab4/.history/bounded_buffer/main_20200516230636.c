@@ -22,7 +22,7 @@ uint32_t random(){
 int main(void) {
 	// TODO in lab4
 	printf("bounded_buffer\n");
-	uint32_t seed = 2;  //For generator the random number
+	uint32_t seed = 1;  //For generator the random number
 	write(SH_MEM, (uint8_t *)&seed, 4, 4);
 
 	int ret = 0;
@@ -60,21 +60,29 @@ int main(void) {
 			sem_wait(&fullBuffers);
 			sem_wait(&mutex);
 			printf("Consumer : consume\n");
-			sleep(random());
+			uint32_t ti=random();
+			printf("%d\n",ti);
+			sleep(ti);
 			sem_post(&mutex);
 			sem_post(&emptyBuffers);
-			sleep(random());
+			ti=random();
+			printf("%d\n",ti);
+			sleep(ti);
 		}
 		
 	}
 	else if(getpid()>1 && getpid()<6){ //producer process
 		while(1){
-			sleep(random());
+			uint32_t ti=random();
+			printf("%d\n",ti);
+			sleep(ti);
 			sem_wait(&emptyBuffers);
 			sem_wait(&mutex);
 			int id = getpid() - 1;  //producer id, 1~4
 			printf("Producer %d: produce\n", id);
-			sleep(random());
+			ti=random();
+			printf("%d\n",ti);
+			sleep(ti);
 			sem_post(&mutex);
 			sem_post(&fullBuffers);
 		}

@@ -22,7 +22,7 @@ uint32_t random(){
 int main(void) {
 	// TODO in lab4
 	printf("bounded_buffer\n");
-	uint32_t seed = 2;  //For generator the random number
+	uint32_t seed = 1;  //For generator the random number
 	write(SH_MEM, (uint8_t *)&seed, 4, 4);
 
 	int ret = 0;
