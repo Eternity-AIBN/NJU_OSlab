@@ -30,7 +30,7 @@ int main(void) {
 	while(1){
 		id = getpid();
 		printf("Philosopher %d: think\n", id);
-		sleep(128);  //Between think and eat
+		sleep(128);
 		if(id%2 == 0){
 			sem_wait(&Fork[id]);
 			sem_wait(&Fork[(id+1)%N]); 
@@ -40,7 +40,7 @@ int main(void) {
 			sem_wait(&Fork[id]);
 		}
 		printf("Philosopher %d: eat\n", id);
-		sleep(128);  //Between P-V operation
+		//sleep(128);
 		sem_post(&Fork[id]); 
 		sem_post(&Fork[(id+1)%N]); 
 	}

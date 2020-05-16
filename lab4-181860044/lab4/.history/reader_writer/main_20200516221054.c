@@ -38,6 +38,7 @@ int main(void) {
 			read(SH_MEM, (uint8_t *)&Rcount, 4, 0);
 			if(Rcount == 0){
 				id = getpid();
+				printf("Reader %d: read, total %d reader\n", id, Rcount);
 				sem_wait(&WriteMutex);
 			}
 			Rcount++;
@@ -48,14 +49,13 @@ int main(void) {
 			sleep(128);
 			sem_wait(&CountMutex);
 			sleep(128);
-			read(SH_MEM, (uint8_t *)&Rcount, 4, 0);
 			Rcount--;
 			write(SH_MEM, (uint8_t *)&Rcount, 4, 0);
 			if(Rcount == 0){
 				sem_post(&WriteMutex);
 			}
 			sem_post(&CountMutex);
-			//printf("Reader %d read over, total %d reader\n", id, Rcount);
+			printf("Read over\n");
 		}
 	}
 	else if(getpid() >= 4 && getpid() <= 6){  //writer process
@@ -65,7 +65,7 @@ int main(void) {
 			printf("Writer %d: write\n", id);
 			sleep(128);
 			sem_post(&WriteMutex);
-			//printf("Write over\n");
+			printf("Write over\n");
 		}
 	}
 

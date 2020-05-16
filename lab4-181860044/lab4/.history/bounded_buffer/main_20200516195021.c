@@ -1,6 +1,6 @@
 #include "lib.h"
 #include "types.h"
-#define BUFFER_SIZE 5
+#define BUFFER_SIZE 8
 
 int main(void) {
 	// TODO in lab4
@@ -40,7 +40,6 @@ int main(void) {
 			sem_wait(&fullBuffers);
 			sem_wait(&mutex);
 			printf("Consumer : consume\n");
-			sleep(128);
 			sem_post(&mutex);
 			sem_post(&emptyBuffers);
 			sleep(128);
@@ -49,14 +48,13 @@ int main(void) {
 	}
 	else if(getpid()>1 && getpid()<6){ //producer process
 		while(1){
-			sleep(128);
 			sem_wait(&emptyBuffers);
 			sem_wait(&mutex);
 			int id = getpid() - 1;  //producer id, 1~4
 			printf("Producer %d: produce\n", id);
-			sleep(128);
 			sem_post(&mutex);
 			sem_post(&fullBuffers);
+			sleep(128);
 		}
 		
 	}
