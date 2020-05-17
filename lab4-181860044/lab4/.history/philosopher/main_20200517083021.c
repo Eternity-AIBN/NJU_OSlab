@@ -16,6 +16,7 @@ uint32_t random(){
 	if (num == 0)
 		num = 1;
 	write(SH_MEM, (uint8_t *)&num, 4, 4);
+	printf("num = %d\n",num);
 	return num;
 }
 

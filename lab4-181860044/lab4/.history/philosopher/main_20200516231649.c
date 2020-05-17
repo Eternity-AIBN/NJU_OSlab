@@ -13,9 +13,10 @@ uint32_t random(){
 	lfsr = num_4^num_3^num_2^num_0;
 
 	num = (lfsr << 7) + ((num>>1) & 0x7f);
-	if (num == 0)
-		num = 1;
+	if (num == 0xff)
+		num = 0;
 	write(SH_MEM, (uint8_t *)&num, 4, 4);
+	printf("num = %d\n",num);
 	return num;
 }
 

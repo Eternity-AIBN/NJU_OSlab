@@ -63,7 +63,7 @@ int main(void) {
 			sleep(random());
 			sem_post(&mutex);
 			sem_post(&emptyBuffers);
-			sleep(random());
+			sleep(500);
 		}
 		
 	}

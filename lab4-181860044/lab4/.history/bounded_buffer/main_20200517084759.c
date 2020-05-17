@@ -63,13 +63,13 @@ int main(void) {
 			sleep(random());
 			sem_post(&mutex);
 			sem_post(&emptyBuffers);
-			sleep(random());
+			//sleep(random());
 		}
 		
 	}
 	else if(getpid()>1 && getpid()<6){ //producer process
 		while(1){
-			sleep(random());
+			sleep(random()+100);
 			sem_wait(&emptyBuffers);
 			sem_wait(&mutex);
 			int id = getpid() - 1;  //producer id, 1~4
