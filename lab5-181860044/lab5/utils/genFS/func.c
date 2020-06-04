@@ -199,6 +199,8 @@ int getAvailBlock (FILE *file, SuperBlock *superBlock, int *blockOffset) {
     
     *blockOffset = superBlock->blocks + ((j * 8 + k) * superBlock->blockSize / SECTOR_SIZE);
 
+    //printf("j=%d  k=%d  blockOffset=%d bitmap=%d\n",j,k,*blockOffset,blockBitmap.byte[j]);
+
     fseek(file, 0, SEEK_SET);
     fwrite((void *)superBlock, sizeof(SuperBlock), 1, file);
     fseek(file, blockBitmapOffset * SECTOR_SIZE, SEEK_SET);
@@ -477,7 +479,6 @@ int getDirEntry (FILE *file, SuperBlock *superBlock, Inode *inode, int dirIndex,
     int dirCount = 0;
     DirEntry *dirEntry = NULL;
     uint8_t buffer[superBlock->blockSize];
-
     for (i = 0; i < inode->blockCount; i++) {
         ret = readBlock(file, superBlock, inode, i, buffer);
         if (ret == -1)
@@ -675,15 +676,239 @@ int mkdir (const char *driver, const char *destDirPath){
     }
     if (cond == 1)
         *((char*)destDirPath + length - 1) = '/';
-    
+
     printf("mkdir %s\n", destDirPath);
     printf("MKDIR success.\n%d inodes and %d data blocks available.\n", superBlock.availInodeNum, superBlock.availBlockNum);
     fclose(file);
     return 0;
 }
 
+// Do the opposite of getAvailBlock, for 'rmdir' and 'rm'
+int removeAllocedBlock (FILE *file, SuperBlock *superBlock, int *blockOffset) {
+    int j = 0;
+    int k = 0;
+    int blockBitmapOffset = 0;
+    BlockBitmap blockBitmap;
+
+    superBlock->availBlockNum++;
+    
+    blockBitmapOffset = superBlock->blockBitmap;
+    fseek(file, blockBitmapOffset * SECTOR_SIZE, SEEK_SET);
+    fread((void *)&blockBitmap, sizeof(BlockBitmap), 1, file);
+
+    //printf("blockOffset = %d\n",*blockOffset);
+    uint32_t temp = (*blockOffset-superBlock->blocks)/(superBlock->blockSize/SECTOR_SIZE);
+    j = temp/8;
+    k = temp%8;
+
+    //printf("j = %d, k = %d\n",j,k);
+    //printf("blockBitmap.byte[j] = %d\n",blockBitmap.byte[j]);
+    uint8_t tmp = ~(1 << (7-k));
+    blockBitmap.byte[j] = blockBitmap.byte[j] & tmp;
+    //printf("blockBitmap.byte[j] = %d\n",blockBitmap.byte[j]);
+    //printf("cccc\n");
+    //*blockOffset = 0;
+    fseek(file, 0, SEEK_SET);
+    fwrite((void *)superBlock, sizeof(SuperBlock), 1, file);
+    fseek(file, blockBitmapOffset * SECTOR_SIZE, SEEK_SET);
+    fwrite((void *)&blockBitmap, sizeof(BlockBitmap), 1, file);
+    return 0;
+}
+
+// Do the opposite of getAvailInode, for 'rmdir' and 'rm'
+int removeAllocedInode (FILE *file, SuperBlock *superBlock, int *inodeOffset) {
+    int j = 0;
+    int k = 0;
+    int inodeBitmapOffset = 0;
+    int inodeTableOffset = superBlock->inodeTable;;
+    InodeBitmap inodeBitmap;
+
+    superBlock->availInodeNum++;
+
+    inodeBitmapOffset = superBlock->inodeBitmap;
+    fseek(file, inodeBitmapOffset * SECTOR_SIZE, SEEK_SET);
+    fread((void *)&inodeBitmap, sizeof(BlockBitmap), 1, file);
+    
+    uint32_t temp = (*inodeOffset - inodeTableOffset * SECTOR_SIZE) / sizeof(Inode);
+    j = temp/8;
+	k = temp%8;
+    uint8_t tmp = ~(1 << (7-k));
+    inodeBitmap.byte[j] = inodeBitmap.byte[j] & tmp;
+    //printf("j = %d, k = %d\n",j,k);
+    
+    //*inodeOffset = 0;
+
+    fseek(file, 0, SEEK_SET);
+    fwrite((void *)superBlock, sizeof(SuperBlock), 1, file);
+    fseek(file, inodeBitmapOffset * SECTOR_SIZE, SEEK_SET);
+    fwrite((void *)&inodeBitmap, sizeof(InodeBitmap), 1, file);
+
+    return 0;
+}
+
+// Do the opposite of allocInode, for 'rmdir' and 'rm'
+int freeInode (FILE *file, SuperBlock *superBlock, Inode *fatherInode, int fatherInodeOffset,
+        Inode *destInode, int *destInodeOffset, const char *destFilename, int destFiletype) {
+    int i = 0;
+    int j = 0;
+    int ret = 0;
+    int blockOffset = 0;
+    DirEntry *dirEntry = NULL;
+    uint8_t buffer[superBlock->blockSize];
+    int length = stringLen(destFilename);
+
+    if (destFilename == NULL || destFilename[0] == 0)
+        return -1;
+
+    if (superBlock->availInodeNum == 0)
+        return -1;
+    
+    for (i = 0; i < fatherInode->blockCount; i++) {
+        ret = readBlock(file, superBlock, fatherInode, i, buffer);
+        if (ret == -1)
+            return -1;
+        dirEntry = (DirEntry *)buffer;
+        for (j = 0; j < superBlock->blockSize / sizeof(DirEntry); j++) {
+            if (dirEntry[j].inode == 0)
+                continue;
+            else if (stringCmp(dirEntry[j].name, destFilename, length) == 0)
+                break; // file with filename = destFilename exist
+        }
+        if (j < superBlock->blockSize / sizeof(DirEntry))
+            break;
+    }
+    if (i == fatherInode->blockCount) {
+        return -1;
+    }
+    
+    *destInodeOffset = superBlock->inodeTable * SECTOR_SIZE + (dirEntry[j].inode - 1) * sizeof(Inode);  //To be remove
+    fseek(file, *destInodeOffset, SEEK_SET);
+    fread((void *)destInode, sizeof(Inode), 1, file);
+
+    //Similar to the 'allocInode' function
+    if(destInode->type != destFiletype){
+        return -1;
+    }
+    destInode->linkCount--;
+    //printf("    destInode->linkCount = %d\n",destInode->linkCount);
+    if(destInode->linkCount == 0){  //Need to update the inodeBitmap,blockBitmap,etc.
+        //Recall the block
+        //printf("    destInode->blockCount = %d\n",destInode->blockCount);
+        while(destInode->blockCount!=0){
+            //Similiar to the 'allocLastBlock' function
+            int divider0 = superBlock->blockSize / 4;
+            int bound0 = POINTER_NUM;
+            int bound1 = bound0 + divider0;
+            uint32_t singlyPointerBuffer[divider0];
+
+            if (destInode->blockCount < bound0) {
+                removeAllocedBlock(file,superBlock,&destInode->pointer[destInode->blockCount]);
+            }
+            else if (destInode->blockCount == bound0) {
+                fseek(file, destInode->singlyPointer * SECTOR_SIZE, SEEK_SET);
+                fread((void *)singlyPointerBuffer, sizeof(uint8_t), superBlock->blockSize, file);
+                removeAllocedBlock(file,superBlock,&singlyPointerBuffer[0]);
+                removeAllocedBlock(file,superBlock,&destInode->singlyPointer);
+            }
+            else if (destInode->blockCount < bound1) {
+                fseek(file, destInode->singlyPointer * SECTOR_SIZE, SEEK_SET);
+                fread((void *)singlyPointerBuffer, sizeof(uint8_t), superBlock->blockSize, file);
+                removeAllocedBlock(file,superBlock,&singlyPointerBuffer[destInode->blockCount - bound0]);
+            }
+            else
+                return -1;
+
+            destInode->blockCount--;
+            fseek(file, *destInodeOffset, SEEK_SET);
+            fwrite((void *)destInode, sizeof(Inode), 1, file);
+        }
+        //Recall the inode
+        removeAllocedInode(file,superBlock,destInodeOffset);
+
+        dirEntry[j].inode = 0; //set empty
+    }
+    else{  //write back
+        fseek(file, *destInodeOffset, SEEK_SET);
+		fwrite((void*)destInode, sizeof(Inode), 1, file);
+    }
+
+    ret = writeBlock(file, superBlock, fatherInode, i, buffer);
+    if (ret == -1)
+        return -1;
+    return 0;
+}
+
 int rmdir (const char *driver, const char *destDirPath) {
     // TODO
+    //Similar to mkdir
+    FILE *file = NULL;
+    char tmp = 0;
+    int length = 0;
+    int cond = 0;
+    int ret = 0;
+    int size = 0;
+    SuperBlock superBlock;
+    int fatherInodeOffset = 0;
+    int destInodeOffset = 0;
+    Inode fatherInode;
+    Inode destInode;
+    if (driver == NULL) {
+        printf("driver == NULL.\n");
+        return -1;
+    }
+    file = fopen(driver, "r+");
+    if (file == NULL) {
+        printf("Failed to open driver.\n");
+        return -1;
+    }
+    ret = readSuperBlock(file, &superBlock);
+    if (ret == -1) {
+        printf("Failed to load SuperBlock.\n");
+        fclose(file);
+        return -1;
+    }
+    if (destDirPath == NULL) {
+        printf("destDirPath == NULL");
+        fclose(file);
+        return -1;
+    }
+    length = stringLen(destDirPath);
+    if (destDirPath[length - 1] == '/') {
+        cond = 1;
+        *((char*)destDirPath + length - 1) = 0;
+    }
+    ret = stringChrR(destDirPath, '/', &size);
+    if (ret == -1) {
+        printf("Incorrect destination file path.\n");
+        fclose(file);
+        return -1;
+    }
+    tmp = *((char*)destDirPath + size + 1);
+    *((char*)destDirPath + size + 1) = 0;
+    ret = readInode(file, &superBlock, &fatherInode, &fatherInodeOffset, destDirPath);
+    *((char*)destDirPath + size + 1) = tmp;
+    if (ret == -1) {
+        printf("Failed to read father inode.\n");
+        if (cond == 1)
+            *((char*)destDirPath + length - 1) = '/';
+        fclose(file);
+        return -1;
+    }
+    ret = freeInode(file, &superBlock, &fatherInode, fatherInodeOffset,
+        &destInode, &destInodeOffset, destDirPath + size + 1, DIRECTORY_TYPE);
+    if (ret == -1) {
+        printf("Failed to free inode.\n");
+        if (cond == 1)
+            *((char*)destDirPath + length - 1) = '/';
+        fclose(file);
+        return -1;
+    }
+    if (cond == 1)
+        *((char*)destDirPath + length - 1) = '/';
+    
+    printf("rmdir %s\n", destDirPath);
+    printf("RMDIR success.\n%d inodes and %d data blocks available.\n", superBlock.availInodeNum, superBlock.availBlockNum);
+    fclose(file);
     return 0;
 }
 
@@ -779,6 +1004,76 @@ int cp (const char *driver, const char *srcFilePath, const char *destFilePath) {
 
 int rm (const char *driver, const char *destFilePath) {
     // TODO
+    //Similar to touch
+    FILE *file = NULL;
+    FILE *fileSrc = NULL;
+    char tmp = 0;
+    int ret = 0;
+    int size = 0;
+    int length = 0;
+    SuperBlock superBlock;
+    int fatherInodeOffset = 0;  // byte as unit
+    int destInodeOffset = 0;    // byte as unit
+    Inode fatherInode;          // Inode for dir
+    Inode destInode;            // Inode for name
+
+    if (driver == NULL) {
+        printf("driver == NULL.\n");
+        return -1;
+    }
+    file = fopen(driver, "r+");
+    if (file == NULL) {
+        printf("Failed to open driver.\n");
+        return -1;
+    }
+    ret = readSuperBlock(file, &superBlock);
+    if (ret == -1) {
+        printf("Failed to load superBlock.\n");
+        fclose(file);
+        fclose(fileSrc);
+        return -1;
+    }
+    if (destFilePath == NULL) {
+        printf("destFilePath == NULL.\n");
+        fclose(file);
+        fclose(fileSrc);
+        return -1;
+    }
+    length = stringLen(destFilePath);
+    if (destFilePath[0] != '/' || destFilePath[length - 1] == '/') {
+        printf("Incorrect destination file path.\n");
+        fclose(file);
+        fclose(fileSrc);
+        return -1;
+    }
+    ret = stringChrR(destFilePath, '/', &size);
+    if (ret == -1) { // no '/' in destFilePath
+        printf("Incorrect destination file path.\n");
+        fclose(file);
+        fclose(fileSrc);
+        return -1;
+    }
+    tmp = *((char*)destFilePath + size + 1);
+    *((char*)destFilePath + size + 1) = 0;  // destFilePath is dir ended with '/'.
+    ret = readInode(file, &superBlock, &fatherInode, &fatherInodeOffset, destFilePath);
+    *((char*)destFilePath + size + 1) = tmp;
+    if (ret == -1) {
+        printf("Failed to read father inode.\n");
+        fclose(file);
+        fclose(fileSrc);
+        return -1;
+    }
+    ret = freeInode(file, &superBlock, &fatherInode, fatherInodeOffset,
+        &destInode, &destInodeOffset, destFilePath + size + 1, REGULAR_TYPE);
+    if (ret == -1) {
+        printf("Failed to free inode.\n");
+        fclose(file);
+        fclose(fileSrc);
+        return -1;
+    }
+    printf("rm %s\n", destFilePath);
+    printf("RM success.\n%d inodes and %d data blocks available.\n", superBlock.availInodeNum, superBlock.availBlockNum);
+    fclose(file);
     return 0;
 }
 

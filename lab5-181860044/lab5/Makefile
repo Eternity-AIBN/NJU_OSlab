@@ -5,14 +5,12 @@ os.img:
 	@cd bootloader; make
 	@cd kernel; make
 	@cd bounded_buffer; make
-	@cd philosopher; make
-	@cd reader_writer; make
 	@cd app_print; make
 	@cd app; make
 	@#cat bootloader/bootloader.bin kernel/kMain.bin app/uMain.bin > os.img
 	@#cat bootloader/bootloader.bin kernel/kMain.bin app/uMain.elf > os.img
 	@#cat bootloader/bootloader.bin kernel/kMain.elf app/uMain.elf > os.img
-	@./utils/genFS/genFS app/uMain.elf app_print/app_print.elf bounded_buffer/bounded_buffer.elf philosopher/philosopher.elf reader_writer/reader_writer.elf
+	@./utils/genFS/genFS app/uMain.elf app_print/app_print.elf bounded_buffer/bounded_buffer.elf 
 	cat bootloader/bootloader.bin kernel/kMain.elf fs.bin > os.img
 
 play: os.img
