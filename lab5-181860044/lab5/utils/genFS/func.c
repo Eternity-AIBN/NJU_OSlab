@@ -800,6 +800,7 @@ int freeInode (FILE *file, SuperBlock *superBlock, Inode *fatherInode, int fathe
             int bound0 = POINTER_NUM;
             int bound1 = bound0 + divider0;
             uint32_t singlyPointerBuffer[divider0];
+            destInode->blockCount--;
 
             if (destInode->blockCount < bound0) {
                 removeAllocedBlock(file,superBlock,&destInode->pointer[destInode->blockCount]);
@@ -818,7 +819,6 @@ int freeInode (FILE *file, SuperBlock *superBlock, Inode *fatherInode, int fathe
             else
                 return -1;
 
-            destInode->blockCount--;
             fseek(file, *destInodeOffset, SEEK_SET);
             fwrite((void *)destInode, sizeof(Inode), 1, file);
         }

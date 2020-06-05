@@ -21,35 +21,30 @@ int main(int argc, char *argv[]) {
     stringCpy("/usr", destFilePath, NAME_LENGTH - 1);
     mkdir(driver, destFilePath);
 
-    /*stringCpy(argv[2], srcFilePath, NAME_LENGTH - 1);
-    stringCpy("/usr/bounded_buffer", srcFilePath, NAME_LENGTH - 1);
-    cp(driver, srcFilePath, destFilePath); */
+    stringCpy(argv[3], srcFilePath, NAME_LENGTH - 1);
+    //printf("%s\n",argv[3]);
+    stringCpy("/usr/bounded_buffer", destFilePath, NAME_LENGTH - 1);
+    cp(driver, srcFilePath, destFilePath); 
 
-    /*stringCpy("/boot", destFilePath, NAME_LENGTH - 1);
-    ls(driver, destFilePath);
-
-    stringCpy("/boot/initrd", destFilePath, NAME_LENGTH - 1);
-    ls(driver, destFilePath);
-
+    //rm '/usr/bounded_buffer'
     stringCpy("/usr", destFilePath, NAME_LENGTH - 1);
-    ls(driver, destFilePath); */
+    ls(driver, destFilePath);   //Before
+    stringCpy("/usr/bounded_buffer", destFilePath, NAME_LENGTH - 1);
+    rm(driver, destFilePath);   
+    stringCpy("/usr", destFilePath, NAME_LENGTH - 1);
+    ls(driver, destFilePath);   //After
 
     //rmdir '/usr':
     stringCpy("/", destFilePath, NAME_LENGTH - 1);
-    ls(driver, destFilePath); //Before
+    ls(driver, destFilePath);   //Before
     stringCpy("/usr", destFilePath, NAME_LENGTH - 1);
     rmdir(driver, destFilePath);
     stringCpy("/", destFilePath, NAME_LENGTH - 1);
-    ls(driver, destFilePath); //After
+    ls(driver, destFilePath);   //After
     stringCpy("/usr", destFilePath, NAME_LENGTH - 1);
     rmdir(driver, destFilePath);
     stringCpy("/", destFilePath, NAME_LENGTH - 1);
-    ls(driver, destFilePath); //After
-
-    //rm '/boot/initrd'
-    /*stringCpy("/usr/bounded_buffer", destFilePath, NAME_LENGTH - 1);
-    rm(driver, destFilePath);
-    ls(driver, destFilePath); */
+    ls(driver, destFilePath);   //After
 
     return 0;
 }
