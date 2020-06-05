@@ -61,9 +61,20 @@ typedef struct Semaphore Semaphore;
 struct Device {
 	int state;
 	int value;
+	int inodeOffset; //XXX inodeOffset in filesystem, for syscall open
 	struct ListHead pcb; // link to all pcb ListHead blocked on this device
 };
 typedef struct Device Device;
+
+#define MAX_FILE_NUM 4
+
+struct File {
+	int state;
+	int inodeOffset; //XXX inodeOffset in filesystem, for syscall open
+	int offset; //XXX offset from SEEK_SET
+	int flags;
+};
+typedef struct File File;
 
 #define MAX_STACK_SIZE 4096
 #define MAX_PCB_NUM ((NR_SEGMENTS-2)/2)

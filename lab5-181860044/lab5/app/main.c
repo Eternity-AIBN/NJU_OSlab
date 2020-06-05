@@ -1,23 +1,24 @@
-#include "lib.h"
 #include "types.h"
-
+#include "lib.h"
 int uEntry(void) {
-	char ch;
-	printf("Input: 1 for bounded_buffer\n       2 for philosopher\n       3 for reader_writer\n");
-	scanf("%c", &ch);
-	switch (ch) {
-		case '1':
-			exec("/usr/bounded_buffer", 0);
-			break;
-		case '2':
-			exec("/usr/philosopher", 0);
-			break;
-		case '3':
-			exec("/usr/reader_writer", 0);
-			break;
-		default:
-			break;
+	int fd = 0;
+	int i = 0;
+	char tmp = 0;
+
+	ls("/"); 
+	ls("/boot/"); 
+	ls("/dev/");
+	ls("/usr/"); 
+
+	printf("create /usr/test and write alphabets to it\n");
+	fd = open("/usr/test", O_READ | O_WRITE | O_CREATE); 
+	for (i = 0; i < 512; i ++) { 
+		tmp = (char)(i % 26 + 'A');
+		write(fd, (uint8_t*)&tmp, 1);
 	}
+	close(fd);
+	ls("/usr/"); 
+	cat("/usr/test");
 	exit();
 	return 0;
 }

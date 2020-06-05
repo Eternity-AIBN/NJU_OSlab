@@ -1,5 +1,15 @@
 #include "x86.h"
 #include "device.h"
+#include "fs.h"
+
+#define O_WRITE 0x01
+#define O_READ 0x02
+#define O_CREATE 0x04
+#define O_DIRECTORY 0x08
+
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
 
 #define SYS_WRITE 0
 #define SYS_FORK 1
@@ -9,6 +19,10 @@
 #define SYS_READ 5
 #define SYS_SEM 6
 #define SYS_GETPID 7
+#define SYS_OPEN 8
+#define SYS_LSEEK 9
+#define SYS_CLOSE 10
+#define SYS_REMOVE 11
 
 #define STD_OUT 0
 #define STD_IN 1
@@ -25,6 +39,8 @@ extern int current;
 
 extern Semaphore sem[MAX_SEM_NUM];
 extern Device dev[MAX_DEV_NUM];
+extern File file[MAX_FILE_NUM];
+extern SuperBlock sBlock;
 
 extern int displayRow;
 extern int displayCol;
@@ -44,6 +60,10 @@ void syscallSleep(struct TrapFrame *tf);
 void syscallExit(struct TrapFrame *tf);
 void syscallSem(struct TrapFrame *tf);
 void syscallGetPid(struct TrapFrame *tf);
+void syscallOpen(struct TrapFrame *tf);
+void syscallLseek(struct TrapFrame *tf);
+void syscallClose(struct TrapFrame *tf);
+void syscallRemove(struct TrapFrame *tf);
 
 void syscallWriteStdOut(struct TrapFrame *tf);
 void syscallReadStdIn(struct TrapFrame *tf);
@@ -118,6 +138,18 @@ void syscallHandle(struct TrapFrame *tf) {
 		case SYS_GETPID:
 			syscallGetPid(tf);
 			break; // for SYS_GETPID
+		case SYS_OPEN:
+			syscallOpen(tf);
+			break; // for SYS_OPEN
+		case SYS_LSEEK:
+			syscallLseek(tf);
+			break; // for SYS_SEEK
+		case SYS_CLOSE:
+			syscallClose(tf);
+			break; // for SYS_CLOSE
+		case SYS_REMOVE:
+			syscallRemove(tf);
+			break; // for SYS_REMOVE
 		default:break;
 	}
 }
@@ -540,5 +572,303 @@ void syscallGetPid(struct TrapFrame *tf) {
 
 void GProtectFaultHandle(struct TrapFrame *tf){
 	assert(0);
+	return;
+}
+
+void syscallOpen(struct TrapFrame *tf){
+	//Get the file/dir path
+	int sel = tf->ds;
+	char *str = (char *)tf->ecx;
+	char path[128];
+	int i = 0;
+	uint8_t ret = 0;
+	char character = 0;
+	asm volatile("movw %0, %%es"::"m"(sel));
+	asm volatile("movb %%es:(%1), %0":"=r"(character):"r"(str + i));
+	while (character != 0) {
+		path[i] = character;
+		i++;
+		asm volatile("movb %%es:(%1), %0":"=r"(character):"r"(str + i));
+	}
+	path[i] = 0;
+
+	int flags = tf->edx;
+	uint8_t write_permission = flags&O_WRITE;
+	uint8_t read_permission = flags&O_READ;
+	uint8_t create_permission = flags&O_CREATE;
+	uint8_t dir_permission = flags&O_DIRECTORY;
+
+	Inode destInode,fatherInode;
+	int inodeOffset = 0, fatherOffset = 0;
+	int file_exist = readInode(&sBlock,&destInode,&inodeOffset,path);
+
+	if(file_exist==-1){  //File/dir not exist
+		if(create_permission==0){
+			pcb[current].regs.eax=-1;
+	   		return;
+		}
+		//Get the father_path
+		uint32_t len = stringLen(path);
+		char father_path[128];
+		char filename[128];
+		int size = 0;
+		if(path[len-1]=='/'){  //It is a dir
+			if(dir_permission==0){   //Conflict
+				pcb[current].regs.eax=-1;
+	   			return;
+			}
+			len--;
+		}
+		stringCpy(path,father_path,len);
+		stringChrR(father_path,'/',&size);
+		stringCpy(path,father_path,size+1);
+
+		//Get the filename
+		stringCpy(str+size+1,filename,len-size-1);
+
+		ret = readInode(&sBlock,&fatherInode,fatherOffset,father_path);
+		if(ret == -1){
+			pcb[current].regs.eax=-1;
+	   		return;
+		}
+		for(i = 0; i < MAX_FILE_NUM; i++){
+			if(file[i].state==0) break;
+		}
+		if(i == MAX_FILE_NUM){   //The FCB is full
+			pcb[current].regs.eax=-1;
+	   		return;
+		}
+		int type;
+		if(dir_permission==0){
+			type = REGULAR_TYPE;
+		}
+		else{
+			type = DIRECTORY_TYPE;
+		}
+		
+		ret = allocInode(&sBlock,&fatherInode,fatherOffset,&destInode,&inodeOffset,filename,type);
+		if(ret == -1){
+			pcb[current].regs.eax=-1;
+	   		return;
+		}
+		file[i].state = 1;
+		file[i].inodeOffset = inodeOffset;
+		file[i].offset = 0;
+		file[i].flags = flags;
+
+		pcb[current].regs.eax = MAX_DEV_NUM + i; //set fd
+		return;
+	}
+	else{	//File/dir exist
+		if(destInode.type == DIRECTORY_TYPE){  
+			if(dir_permission == 0){	//Type is different
+				pcb[current].regs.eax=-1;
+	   			return;
+			}
+		}
+		else{
+			if(dir_permission != 0){	//Type is different
+				pcb[current].regs.eax=-1;
+	   			return;
+			}
+		}
+
+		//Open device file
+		for(i = 0; i < MAX_DEV_NUM; i++){
+			if(dev[i].state==1&&dev[i].inodeOffset==inodeOffset){  //The file is open.
+				//Like P-operation
+				dev[i].value--;
+				if(dev[i].value < 0){
+					pcb[current].blocked.next = dev[i].pcb.next;
+					pcb[current].blocked.prev = &(dev[i].pcb);
+					dev[i].pcb.next = &(pcb[current].blocked);
+					(pcb[current].blocked.next)->prev = &(pcb[current].blocked);
+					pcb[current].state = STATE_BLOCKED;
+					pcb[current].sleepTime = -1; 
+					asm volatile("int $0x20");
+				}
+				pcb[current].regs.eax = i;
+				return;
+			}
+		}
+
+		for(i = 0; i < MAX_FILE_NUM; i++){
+			if(file[i].state==0) break;
+		}
+		if(i == MAX_FILE_NUM){   //The FCB is full
+			pcb[current].regs.eax=-1;
+	   		return;
+		}
+		file[i].state = 1;
+		file[i].inodeOffset = inodeOffset;
+		file[i].offset = 0;
+		file[i].flags = flags;
+
+		pcb[current].regs.eax = MAX_DEV_NUM + i; //set fd
+		return;
+	}
+
+	return;
+}
+
+void syscallLseek(struct TrapFrame *tf){
+	int fd = tf->ecx;
+	int offset = tf->edx;
+	int whence = tf->ebx;
+	if(fd < MAX_DEV_NUM || fd >= MAX_DEV_NUM+MAX_FILE_NUM){
+		pcb[current].regs.eax=-1;
+	   	return;
+	}
+	if (file[fd-MAX_DEV_NUM].state == 0){ //The file hasn't been opened
+		pcb[current].regs.eax=-1;
+	   	return;
+	}
+
+	Inode inode;
+	diskRead(&inode, sizeof(Inode), 1, file[fd-MAX_DEV_NUM].inodeOffset);
+	if(whence == SEEK_SET){
+		if(offset>=0 && offset<inode.size){
+			file[fd-MAX_DEV_NUM].offset = offset;
+			pcb[current].regs.eax = offset;
+			return;
+		}
+	}
+	else if(whence == SEEK_CUR){
+		if(offset+file[fd-MAX_DEV_NUM].offset>=0 && offset+file[fd-MAX_DEV_NUM].offset<inode.size){
+			file[fd-MAX_DEV_NUM].offset += offset;
+			pcb[current].regs.eax = file[fd-MAX_DEV_NUM].offset;
+			return;
+		}
+	}
+	else if(whence == SEEK_END){
+		if(offset<=0 && offset+inode.size>=0){
+			file[fd-MAX_DEV_NUM].offset = offset+inode.size;
+			pcb[current].regs.eax = file[fd-MAX_DEV_NUM].offset;
+			return;
+		}
+	}
+
+	//other case
+	pcb[current].regs.eax=-1;
+	return;
+}
+
+void syscallClose(struct TrapFrame *tf){
+	int fd = tf->ecx;
+	if(fd<0 || fd>=MAX_DEV_NUM+MAX_FILE_NUM){
+		pcb[current].regs.eax=-1;
+		return;
+	}
+	if(fd < MAX_DEV_NUM){  //Device file
+		if(file[fd].state == 1){ 
+			//Like V-operation
+			dev[fd].value++;
+			if(dev[fd].value <= 0){
+				ProcessTable *pt = (ProcessTable*)((uint32_t)(dev[fd].pcb.prev) - (uint32_t)&(((ProcessTable*)0)->blocked));
+				dev[fd].pcb.prev = (dev[fd].pcb.prev)->prev;
+				(dev[fd].pcb.prev)->next = &(dev[fd].pcb);
+				pt->state = STATE_RUNNABLE;
+				pt->sleepTime = 0;
+			}
+			pcb[current].regs.eax = 0;
+			return;
+		}
+	}
+	else{	//Simple file
+		if(file[fd-MAX_DEV_NUM].state != 0){
+			file[fd-MAX_DEV_NUM].state = 0;
+			pcb[current].regs.eax = 0;
+			return;
+		}
+	}
+
+	//other case
+	pcb[current].regs.eax=-1;
+	return;
+}
+
+int remove(Inode *destInode,Inode *fatherInode,int *destInodeOffset,int *fatherInodeOffset,char *filename){  //A recursive function
+	//Remove the file
+	if(destInode->type != DIRECTORY_TYPE){
+		return freeInode(&sBlock,fatherInode,*fatherInodeOffset,destInode,destInodeOffset,filename,destInode->type);
+	}
+	//Remove the directory, like the 'readInode' function
+	// go deeper dir
+	uint8_t buffer[BLOCK_SIZE];
+	for(int i=0; i<destInode->blockCount; ++i){
+		int ret = readBlock(&sBlock, destInode, i, buffer);
+		if(ret == -1){
+			pcb[current].regs.eax = -1;
+			return;
+		}
+		DirEntry *dirEntry = (DirEntry *)buffer;
+		for (int j = 0; j < sBlock.blockSize / sizeof(DirEntry); j++) {
+			if (dirEntry[j].inode == 0)
+				continue;
+			else{
+				int tmpOffset = dirEntry[j].inode;
+				Inode tmpInode;
+				diskRead(&tmpInode, sizeof(Inode), 1, tmpOffset);
+				ret = recRemove(&tmpInode,destInode,&tmpOffset,destInodeOffset,dirEntry[j].name); //recursive remove
+				if(ret==-1){
+					return -1;
+				}
+			}
+		}
+	}
+	return freeInode(&sBlock,fatherInode,*fatherInodeOffset,destInode,destInodeOffset,filename,destInode->type);
+}
+
+void syscallRemove(struct TrapFrame *tf){
+	//Get the path
+	int sel = tf->ds;
+	char *str = (char *)tf->ecx;
+	char path[128];
+	int i = 0;
+	uint8_t ret = 0;
+	char character = 0;
+	asm volatile("movw %0, %%es"::"m"(sel));
+	asm volatile("movb %%es:(%1), %0":"=r"(character):"r"(str + i));
+	while (character != 0) {
+		path[i] = character;
+		i++;
+		asm volatile("movb %%es:(%1), %0":"=r"(character):"r"(str + i));
+	}
+	path[i] = 0;
+
+	Inode destInode,fatherInode;
+	int inodeOffset = 0, fatherOffset = 0;
+	int file_exist = readInode(&sBlock,&destInode,&inodeOffset,path);
+	if(file_exist == -1){ //The file/dir is not exist
+		pcb[current].regs.eax=-1;
+		return;
+	}
+	
+	//Get the father_path
+	uint32_t len = stringLen(path);
+	char father_path[128];
+	char filename[128];
+	int size = 0;
+	if(path[len-1]=='/'){  //It is a dir
+		len--;
+	}
+	stringCpy(path,father_path,len);
+	stringChrR(father_path,'/',&size);
+	stringCpy(path,father_path,size+1);
+
+	//Get the filename
+	stringCpy(str+size+1,filename,len-size-1);
+
+	ret = readInode(&sBlock,&fatherInode,fatherOffset,father_path);
+	if(ret == -1){
+		pcb[current].regs.eax = -1;
+		return;
+	}
+	ret = remove(&destInode,&fatherInode,&inodeOffset,&fatherOffset,filename);  //Delete files in the directory recursively 
+	if(ret == -1){
+		pcb[current].regs.eax = -1;
+		return;
+	}
+	pcb[current].regs.eax = ret;
 	return;
 }
