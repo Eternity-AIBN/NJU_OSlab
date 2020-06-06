@@ -297,6 +297,19 @@ void syscallWriteStdOut(struct TrapFrame *tf) {
 }
 
 void syscallWriteShMem(struct TrapFrame *tf) {
+	/*int sel = tf->ds;
+	int i = 0;
+	uint8_t *buffer = (uint8_t *)tf->edx;
+	int size = tf->ebx;
+	int index = tf->esi;
+	uint8_t *dst = &shMem[index];
+	asm volatile("movw %0, %%es"::"m"(sel));
+	for (i = 0; i < size && index+i < MAX_SHMEM_SIZE; i++) {
+		asm volatile("movb %%es:(%1), %0":"=r"(*dst):"r"(buffer + i));
+		dst++;
+	}
+	pcb[current].regs.eax = i;
+	return; */
 	int fd = tf->ecx;
 	int flags = tf->edx;
 	uint8_t write_permission = flags&O_WRITE;
@@ -313,20 +326,16 @@ void syscallWriteShMem(struct TrapFrame *tf) {
 		pcb[current].regs.eax=-1;
 	   	return;
 	}
-	int sel = tf->ds;
+
 	uint8_t *buffer = (uint8_t *)tf->edx;
 	uint8_t tmp[SECTOR_NUM*SECTOR_SIZE];
-	uint8_t *dst = tmp;
 	int index = file[fd-MAX_DEV_NUM].inodeOffset/sBlock.blockSize;
 	int cur = file[fd-MAX_DEV_NUM].inodeOffset%sBlock.blockSize;
 	int realSize = 0;
 	uint8_t ret = 0;
-	asm volatile("movw %0, %%es"::"m"(sel));
 	while(realSize < size){
 		for(; cur < SECTOR_NUM*SECTOR_SIZE; cur++){
-			asm volatile("movb %%es:(%1), %0":"=r"(*dst):"r"(buffer + cur));
-			dst++;
-			//tmp[realSize] = buffer[cur];
+			tmp[realSize] = buffer[cur];
 			file[fd-MAX_DEV_NUM].inodeOffset++;
 			realSize++;
 			if(realSize == size){
@@ -445,8 +454,6 @@ void syscallReadShMem(struct TrapFrame *tf) {
 	int cur = file[fd-MAX_DEV_NUM].inodeOffset%sBlock.blockSize;
 	int realSize = 0;
 	uint8_t ret = 0;
-	int sel = tf->ds;
-	asm volatile("movw %0, %%es"::"m"(sel));
 	while(realSize < size){
 		ret = readBlock(&sBlock,&inode,index,tmp);
 		index++;
@@ -455,8 +462,7 @@ void syscallReadShMem(struct TrapFrame *tf) {
 			return;
 		}
 		for(; cur < SECTOR_NUM*SECTOR_SIZE; cur++){
-			asm volatile("movb %0, %%es:(%1)"::"r"(tmp + cur),"r"(buffer + realSize));
-			//buffer[realSize] = tmp[cur];
+			buffer[realSize] = tmp[cur];
 			file[fd-MAX_DEV_NUM].inodeOffset++;
 			realSize++;
 			if(realSize == size){

@@ -253,6 +253,7 @@ int freeInode (SuperBlock *superBlock, Inode *fatherInode, int fatherInodeOffset
     int i = 0;
     int j = 0;
     int ret = 0;
+    int blockOffset = 0;
     DirEntry *dirEntry = NULL;
     uint8_t buffer[superBlock->blockSize];
     int length = stringLen(destFilename);
@@ -395,19 +396,6 @@ int allocLastBlock (SuperBlock *superBlock, Inode *inode, int inodeOffset, int b
     inode->blockCount++;
     diskWrite((void*)inode, sizeof(Inode), 1, inodeOffset);
     return 0;
-}
-
-int calNeededPointerBlocks (SuperBlock *superBlock, int blockCount) {
-    int divider0 = superBlock->blockSize / 4;
-    int bound0 = POINTER_NUM;
-    int bound1 = bound0 + divider0;
-
-    if (blockCount == bound0)
-        return 1;
-    else if (blockCount >= bound1)
-        return -1;
-    else
-        return 0;
 }
 
 int allocBlock (SuperBlock *superBlock, Inode *inode, int inodeOffset) {

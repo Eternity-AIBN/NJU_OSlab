@@ -809,7 +809,7 @@ int remove(Inode *destInode,Inode *fatherInode,int *destInodeOffset,int *fatherI
 				int tmpOffset = dirEntry[j].inode;
 				Inode tmpInode;
 				diskRead(&tmpInode, sizeof(Inode), 1, tmpOffset);
-				ret = recRemove(&tmpInode,destInode,&tmpOffset,destInodeOffset,dirEntry[j].name); //recursive remove
+				ret = remove(&tmpInode,destInode,&tmpOffset,destInodeOffset,dirEntry[j].name); //recursive remove
 				if(ret==-1){
 					return -1;
 				}

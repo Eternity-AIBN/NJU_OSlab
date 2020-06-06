@@ -5,10 +5,10 @@ int uEntry(void) {
 	int i = 0;
 	char tmp = 0;
 
-	ls("/"); 
+	/*ls("/"); 
 	ls("/boot/"); 
 	ls("/dev/");
-	ls("/usr/"); 
+	ls("/usr/"); */ 
 
 	printf("create /usr/test and write alphabets to it\n");
 	fd = open("/usr/test", O_READ | O_WRITE | O_CREATE); 
@@ -17,8 +17,8 @@ int uEntry(void) {
 		write(fd, (uint8_t*)&tmp, 1);
 	}
 	close(fd);
-	ls("/usr/"); 
-	cat("/usr/test"); 
+	/*ls("/usr/"); 
+	cat("/usr/test"); */
 	exit();
 	return 0;
 }

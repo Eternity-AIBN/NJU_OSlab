@@ -230,7 +230,7 @@ void keyboardHandle(struct TrapFrame *tf) {
 }
 
 void syscallWrite(struct TrapFrame *tf) {
-	/*switch(tf->ecx) { // file descriptor
+	switch(tf->ecx) { // file descriptor
 		case STD_OUT:
 			if (dev[STD_OUT].state == 1) {
 				syscallWriteStdOut(tf);
@@ -242,16 +242,6 @@ void syscallWrite(struct TrapFrame *tf) {
 			}
 			break; // for SH_MEM
 		default:break;
-	} */
-	if(tf->ecx == STD_OUT){
-		if (dev[STD_OUT].state == 1) {
-			syscallWriteStdOut(tf);
-		}
-	}
-	else{  //All other file
-		if(tf->ecx - MAX_DEV_NUM >= 0 && tf->ecx - MAX_DEV_NUM < MAX_FILE_NUM)
-			if (file[tf->ecx - MAX_DEV_NUM].state == 1) 
-				syscallWriteShMem(tf);
 	}
 }
 
@@ -297,64 +287,24 @@ void syscallWriteStdOut(struct TrapFrame *tf) {
 }
 
 void syscallWriteShMem(struct TrapFrame *tf) {
-	int fd = tf->ecx;
-	int flags = tf->edx;
-	uint8_t write_permission = flags&O_WRITE;
-	if(write_permission == 0){
-		pcb[current].regs.eax=-1;
-	   	return;
-	}
-
-	Inode inode;
-	diskRead(&inode, sizeof(Inode), 1, file[fd-MAX_DEV_NUM].inodeOffset);
-
-	int size = tf->ebx;
-	if(size < 0){
-		pcb[current].regs.eax=-1;
-	   	return;
-	}
+	// TODO in lab4
 	int sel = tf->ds;
+	int i = 0;
 	uint8_t *buffer = (uint8_t *)tf->edx;
-	uint8_t tmp[SECTOR_NUM*SECTOR_SIZE];
-	uint8_t *dst = tmp;
-	int index = file[fd-MAX_DEV_NUM].inodeOffset/sBlock.blockSize;
-	int cur = file[fd-MAX_DEV_NUM].inodeOffset%sBlock.blockSize;
-	int realSize = 0;
-	uint8_t ret = 0;
+	int size = tf->ebx;
+	int index = tf->esi;
+	uint8_t *dst = &shMem[index];
 	asm volatile("movw %0, %%es"::"m"(sel));
-	while(realSize < size){
-		for(; cur < SECTOR_NUM*SECTOR_SIZE; cur++){
-			asm volatile("movb %%es:(%1), %0":"=r"(*dst):"r"(buffer + cur));
-			dst++;
-			//tmp[realSize] = buffer[cur];
-			file[fd-MAX_DEV_NUM].inodeOffset++;
-			realSize++;
-			if(realSize == size){
-				pcb[current].regs.eax = realSize;
-	   			return;
-			}
-		}
-		cur = 0;
-		ret = writeBlock(&sBlock,&inode,index,tmp);
-		index++;
-		if(ret == -1){
-			pcb[current].regs.eax=realSize;
-			return;
-		}
-		if(index>=inode.blockCount){
-			ret=allocBlock(&sBlock,&inode,file[fd-MAX_DEV_NUM].inodeOffset);
-			if(ret==-1){
-				pcb[current].regs.eax = realSize;
-	   			return;
-			}
-		}
+	for (i = 0; i < size && index+i < MAX_SHMEM_SIZE; i++) {
+		asm volatile("movb %%es:(%1), %0":"=r"(*dst):"r"(buffer + i));
+		dst++;
 	}
-	pcb[current].regs.eax = realSize;
+	pcb[current].regs.eax = i;
 	return;
 }
 
 void syscallRead(struct TrapFrame *tf) {
-	/*switch(tf->ecx) {
+	switch(tf->ecx) {
 		case STD_IN:
 			if (dev[STD_IN].state == 1) {
 				syscallReadStdIn(tf);
@@ -367,16 +317,6 @@ void syscallRead(struct TrapFrame *tf) {
 			break;
 		default:
 			break;
-	} */
-	if(tf->ecx == STD_IN){
-		if (dev[STD_IN].state == 1) {
-			syscallReadStdIn(tf);
-		}
-	}
-	else{  //All other file
-		if(tf->ecx - MAX_DEV_NUM >= 0 && tf->ecx - MAX_DEV_NUM < MAX_FILE_NUM)
-			if (file[tf->ecx - MAX_DEV_NUM].state == 1) 
-				syscallReadShMem(tf);
 	}
 }
 
@@ -420,53 +360,18 @@ void syscallReadStdIn(struct TrapFrame *tf) {
 }
 
 void syscallReadShMem(struct TrapFrame *tf) {
-	int fd = tf->ecx;
-	int flags = tf->edx;
-	uint8_t read_permission = flags&O_READ;
-	if(read_permission == 0){
-		pcb[current].regs.eax=-1;
-	   	return;
-	}
-
-	Inode inode;
-	diskRead(&inode, sizeof(Inode), 1, file[fd-MAX_DEV_NUM].inodeOffset);
-
-	int size = tf->ebx;
-	if(size < 0){
-		pcb[current].regs.eax=-1;
-	   	return;
-	}
-	if(size > inode.size-file[fd-MAX_DEV_NUM].inodeOffset){
-		size = inode.size-file[fd-MAX_DEV_NUM].inodeOffset;
-	}
-	uint8_t *buffer = (uint8_t *)tf->edx;
-	uint8_t tmp[SECTOR_NUM*SECTOR_SIZE];
-	int index = file[fd-MAX_DEV_NUM].inodeOffset/sBlock.blockSize;
-	int cur = file[fd-MAX_DEV_NUM].inodeOffset%sBlock.blockSize;
-	int realSize = 0;
-	uint8_t ret = 0;
+	// TODO in lab4
+	int i = 0;
 	int sel = tf->ds;
+	uint8_t *buffer = (uint8_t *)tf->edx;
+	int size = tf->ebx;
+	int index = tf->esi;
+	uint8_t *src = &shMem[index];
 	asm volatile("movw %0, %%es"::"m"(sel));
-	while(realSize < size){
-		ret = readBlock(&sBlock,&inode,index,tmp);
-		index++;
-		if(ret == -1){
-			pcb[current].regs.eax=realSize;
-			return;
-		}
-		for(; cur < SECTOR_NUM*SECTOR_SIZE; cur++){
-			asm volatile("movb %0, %%es:(%1)"::"r"(tmp + cur),"r"(buffer + realSize));
-			//buffer[realSize] = tmp[cur];
-			file[fd-MAX_DEV_NUM].inodeOffset++;
-			realSize++;
-			if(realSize == size){
-				pcb[current].regs.eax = size;
-	   			return;
-			}
-		}
-		cur = 0;
+	for (i = 0; i < size && index+i < MAX_SHMEM_SIZE; i++) {
+		asm volatile("movb %0, %%es:(%1)"::"r"(*(src + i)),"r"(buffer + i));
 	}
-	pcb[current].regs.eax = realSize;
+	pcb[current].regs.eax = i;
 	return;
 }
 
@@ -687,6 +592,8 @@ void syscallOpen(struct TrapFrame *tf){
 	}
 	path[i] = 0;
 
+	putString(path);
+
 	int flags = tf->edx;
 	//uint8_t write_permission = flags&O_WRITE;
 	//uint8_t read_permission = flags&O_READ;
@@ -696,6 +603,8 @@ void syscallOpen(struct TrapFrame *tf){
 	Inode destInode,fatherInode;
 	int inodeOffset = 0, fatherOffset = 0;
 	int file_exist = readInode(&sBlock,&destInode,&inodeOffset,path);
+
+	putInt(file_exist);
 
 	if(file_exist==-1){  //File/dir not exist
 		if(create_permission==0){
