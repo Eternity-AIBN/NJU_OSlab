@@ -491,9 +491,9 @@ void syscallReadShMem(struct TrapFrame *tf) {
 		asm volatile("movw %0, %%es"::"m"(sel));
 		for(; cur < SECTORS_PER_BLOCK*SECTOR_SIZE; cur++){
 			character = tmp[cur];
-			/*putString("character:");
+			putString("character:");
 			putChar(character);
-			putChar('\n'); */
+			putChar('\n'); 
 			asm volatile("movb %0, %%es:(%1)"::"r"(character),"r"(buffer + realSize));
 			file[fd-MAX_DEV_NUM].offset++;
 			realSize++;

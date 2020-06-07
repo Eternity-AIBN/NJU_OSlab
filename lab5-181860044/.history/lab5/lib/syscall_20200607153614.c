@@ -1,6 +1,8 @@
 #include "lib.h"
 #include "types.h"
 
+#define MAX_FILE_NUM 16
+#define MAX_DEV_NUM 4
 //like the one def in genFS/data.h
 union DirEntry {
     uint8_t byte[128];
@@ -599,6 +601,9 @@ int sleep(uint32_t time) {
 }
 
 int exit() {
+	for(int i=0; i<MAX_DEV_NUM+MAX_FILE_NUM; ++i){
+		close(i);
+	}
 	return syscall(SYS_EXIT, 0, 0, 0, 0, 0);
 }
 

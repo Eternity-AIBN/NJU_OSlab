@@ -337,39 +337,34 @@ void syscallWriteShMem(struct TrapFrame *tf) {
 			tmp[cur] = character;
 			/*putString("buffer[cur]:");
 			putChar(character);
-			putChar('\n');  */ 
+			putChar('\n'); */
 			file[fd-MAX_DEV_NUM].offset++;
 			realSize++;
 			if(realSize == size){
-				ret = writeBlock(&sBlock,&inode,index,tmp);
-				inode.size = file[fd-MAX_DEV_NUM].offset;
-				diskWrite(&inode, sizeof(Inode), 1, file[fd-MAX_DEV_NUM].inodeOffset);  //Don't forget to update the inode.size
-				pcb[current].regs.eax = realSize;
-				return;
+				break;
 			}
 		}
 		cur=0;
 		ret = writeBlock(&sBlock,&inode,index,tmp);
-		
 		index++;
 		if(ret == -1){
-			inode.size = file[fd-MAX_DEV_NUM].offset;
-			diskWrite(&inode, sizeof(Inode), 1, file[fd-MAX_DEV_NUM].inodeOffset);  //Don't forget to update the inode.size
+			inode.size = file[fd-MAX_FILE_NUM].offset;
+			diskWrite(&inode, sizeof(Inode), 1, file[fd-MAX_FILE_NUM].inodeOffset);  //Don't forget to update the inode.size
 			pcb[current].regs.eax=realSize;
 			return;
 		}
 		if(index>=inode.blockCount){
 			ret=allocBlock(&sBlock,&inode,file[fd-MAX_DEV_NUM].inodeOffset);
 			if(ret==-1){
-				inode.size = file[fd-MAX_DEV_NUM].offset;
-				diskWrite(&inode, sizeof(Inode), 1, file[fd-MAX_DEV_NUM].inodeOffset);  //Don't forget to update the inode.size
+				inode.size = file[fd-MAX_FILE_NUM].offset;
+				diskWrite(&inode, sizeof(Inode), 1, file[fd-MAX_FILE_NUM].inodeOffset);  //Don't forget to update the inode.size
 				pcb[current].regs.eax = realSize;
 	   			return;
 			}
 		}
 	}
-	inode.size = file[fd-MAX_DEV_NUM].offset;
-	diskWrite(&inode, sizeof(Inode), 1, file[fd-MAX_DEV_NUM].inodeOffset);  //Don't forget to update the inode.size
+	inode.size = file[fd-MAX_FILE_NUM].offset;
+	diskWrite(&inode, sizeof(Inode), 1, file[fd-MAX_FILE_NUM].inodeOffset);  //Don't forget to update the inode.size
 
 	pcb[current].regs.eax = realSize;
 	return;
@@ -457,7 +452,6 @@ void syscallReadShMem(struct TrapFrame *tf) {
 	diskRead(&inode, sizeof(Inode), 1, file[fd-MAX_DEV_NUM].inodeOffset);
 
 	int size = tf->ebx;
-	//putInt(size);
 	if(size < 0){
 		pcb[current].regs.eax=-1;
 	   	return;
@@ -465,8 +459,6 @@ void syscallReadShMem(struct TrapFrame *tf) {
 	if(size > inode.size-file[fd-MAX_DEV_NUM].offset){
 		size = inode.size-file[fd-MAX_DEV_NUM].offset;
 	}
-	//putInt(inode.size);
-	//putInt(file[fd-MAX_DEV_NUM].offset);
 
 	uint8_t *buffer = (uint8_t *)tf->edx;
 	uint8_t tmp[SECTORS_PER_BLOCK*SECTOR_SIZE];
@@ -478,11 +470,6 @@ void syscallReadShMem(struct TrapFrame *tf) {
 	int sel = tf->ds;
 	while(realSize < size){
 		ret = readBlock(&sBlock,&inode,index,tmp);
-		//putChar(tmp[0]);
-		//putChar('\n');
-		/*for(int i=0;i<26;++i)
-			putChar(tmp[i]);
-		putChar('\n'); */
 		index++;
 		if(ret == -1){
 			pcb[current].regs.eax=realSize;
@@ -774,7 +761,7 @@ void syscallOpen(struct TrapFrame *tf){
 	   		return;
 		}
 		for(i = 0; i < MAX_FILE_NUM; i++){
-			if(file[i].state==0) break;
+			if(file[i].state==0&&file[i].inodeOffset==0) break;
 		}
 		if(i == MAX_FILE_NUM){   //The FCB is full
 			pcb[current].regs.eax=-1;

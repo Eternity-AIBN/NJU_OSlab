@@ -699,6 +699,7 @@ int cat(char *destFilePath) {
 		return -1;
 	}
 	uint8_t buffer[256];
+	int k=0;
     while(1){
 		ret = read(fd,buffer,128);
 		if(ret == -1){

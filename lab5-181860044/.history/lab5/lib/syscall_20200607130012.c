@@ -693,19 +693,21 @@ int cat(char *destFilePath) {
 	printf("cat %s\n",destFilePath);
 	uint8_t ret = 0;
 	int fd = open(destFilePath,O_READ);
-	//printf("fd=%d\n",fd);
 	if(fd == -1){
 		printf("Fail to open!\n");
 		return -1;
 	}
 	uint8_t buffer[256];
+	int k=0;
     while(1){
 		ret = read(fd,buffer,128);
 		if(ret == -1){
 			break;
 		}
 		buffer[ret] = '\0';
-		printf("%s",buffer);
+		printf("%s ",buffer);
+		k++;
+		if(k==100)break;
 	}
 	printf("\n");
 	close(fd);
