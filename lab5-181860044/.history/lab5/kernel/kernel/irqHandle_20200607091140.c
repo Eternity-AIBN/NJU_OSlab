@@ -452,6 +452,8 @@ void syscallReadShMem(struct TrapFrame *tf) {
 	diskRead(&inode, sizeof(Inode), 1, file[fd-MAX_DEV_NUM].inodeOffset);
 
 	int size = tf->ebx;
+	putString("Size = ");
+	putInt(size);
 	if(size < 0){
 		pcb[current].regs.eax=-1;
 	   	return;
@@ -459,6 +461,9 @@ void syscallReadShMem(struct TrapFrame *tf) {
 	if(size > inode.size-file[fd-MAX_DEV_NUM].offset){
 		size = inode.size-file[fd-MAX_DEV_NUM].offset;
 	}
+
+	putString("Size = ");
+	putInt(size);
 
 	uint8_t *buffer = (uint8_t *)tf->edx;
 	uint8_t tmp[SECTORS_PER_BLOCK*SECTOR_SIZE];

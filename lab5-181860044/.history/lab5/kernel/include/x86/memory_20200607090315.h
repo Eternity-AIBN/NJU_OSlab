@@ -66,7 +66,7 @@ struct Device {
 };
 typedef struct Device Device;
 
-#define MAX_FILE_NUM 16
+#define MAX_FILE_NUM 8
 
 struct File {
 	int state;

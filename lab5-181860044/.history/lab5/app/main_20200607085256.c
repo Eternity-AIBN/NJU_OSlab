@@ -16,10 +16,14 @@ int uEntry(void) {
 		tmp = (char)(i % 26 + 'A');
 		write(fd, (uint8_t*)&tmp, 1);
 	}
+	/*printf("\nread:");
+	for (i = 0; i < 512; i ++) { 
+		read(fd, (uint8_t*)&tmp, 1);
+		printf("%c",tmp);
+	} */
 	close(fd);
 	ls("/usr/"); 
-	cat("/usr/test"); 
+	//cat("/usr/test"); 
 	exit();
-	while(1);
 	return 0;
 }

@@ -668,7 +668,7 @@ int ls(char *destFilePath) {
 		return -1;
 	}
 	uint8_t buffer[256];
-	int count = 0;
+	int k=0;
     while(1){
 		ret = read(fd,buffer,128);
 		if(ret == -1){
@@ -676,12 +676,10 @@ int ls(char *destFilePath) {
 		}
 		DirEntry *dirEntry = (DirEntry*)buffer;
 		if(dirEntry->inode != 0){
-			count++;
-			if(count!=1&&count!=2){  //The first two is '.' and '..'
-				printf("%s ",dirEntry->name);
-			}
+			printf("%s ",dirEntry->name);
 		}
-		else break;
+		k++;
+		if(k==5)break;
 	}
 	printf("\n");
 	close(fd);
