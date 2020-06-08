@@ -26,7 +26,7 @@
 
 int uEntry(void) {
 	char ch[10];
-	printf("Input: ls <destPathName>\n       cat <destPathName>\n       open <destPathName>\n       rm <destPathName>\n");
+	printf("Input: ls <destPathName>\n       cat <destPathName>\n       open <destPathName>\n");
 	//int ret = 0;
 	while(1){
 		if(getpid()==1){

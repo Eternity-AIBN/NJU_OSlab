@@ -69,19 +69,11 @@ int main(int argc, char *argv[]) {
     mkdir(driver, destFilePath);
 
     stringCpy(argv[2], srcFilePath, NAME_LENGTH - 1);
-    stringCpy("/usr/open", destFilePath, NAME_LENGTH - 1);
+    stringCpy("/usr/print", destFilePath, NAME_LENGTH - 1);
     cp(driver, srcFilePath, destFilePath);
 
     stringCpy(argv[3], srcFilePath, NAME_LENGTH - 1);
     stringCpy("/usr/ls", destFilePath, NAME_LENGTH - 1);
-    cp(driver, srcFilePath, destFilePath);
-
-    stringCpy(argv[4], srcFilePath, NAME_LENGTH - 1);
-    stringCpy("/usr/cat", destFilePath, NAME_LENGTH - 1);
-    cp(driver, srcFilePath, destFilePath);
-
-    stringCpy(argv[5], srcFilePath, NAME_LENGTH - 1);
-    stringCpy("/usr/rm", destFilePath, NAME_LENGTH - 1);
     cp(driver, srcFilePath, destFilePath);
 
     stringCpy("/dev", destFilePath, NAME_LENGTH - 1);
@@ -93,8 +85,8 @@ int main(int argc, char *argv[]) {
 	stringCpy("/dev/stdout",destFilePath,NAME_LENGTH-1);
 	touch(driver,destFilePath);
 
-    stringCpy("/dev/shmem",destFilePath,NAME_LENGTH-1);
-	touch(driver,destFilePath); 
+    /*stringCpy("/dev/shmem",destFilePath,NAME_LENGTH-1);
+	touch(driver,destFilePath); */
 
     stringCpy("/", destFilePath, NAME_LENGTH - 1);
     ls(driver, destFilePath);

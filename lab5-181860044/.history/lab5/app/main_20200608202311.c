@@ -26,7 +26,7 @@
 
 int uEntry(void) {
 	char ch[10];
-	printf("Input: ls <destPathName>\n       cat <destPathName>\n       open <destPathName>\n       rm <destPathName>\n");
+	printf("Input: ls <destPathName>\n       cat <destPathName>\n       open <destPathName>\n");
 	//int ret = 0;
 	while(1){
 		if(getpid()==1){
@@ -34,6 +34,7 @@ int uEntry(void) {
 			if(getpid() == 2){
 				while(1){
 					scanf("%10s", ch);
+					printf("ch=%s\n",ch);
 					if(strCmp(ch,"ls",2)==0){
 						exec("/usr/ls", 0);
 					}
@@ -42,9 +43,6 @@ int uEntry(void) {
 					}
 					else if(strCmp(ch,"open",4)==0){
 						exec("/usr/open", 0);
-					}
-					else if(strCmp(ch,"rm",2)==0){
-						exec("/usr/rm", 0);
 					}
 				}
 				

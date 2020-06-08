@@ -26,30 +26,23 @@
 
 int uEntry(void) {
 	char ch[10];
-	printf("Input: ls <destPathName>\n       cat <destPathName>\n       open <destPathName>\n       rm <destPathName>\n");
-	//int ret = 0;
+	printf("Input: ls <destPathName>\n       cat <destPathName>\n       open <destPathName>\n");
+	int ret = 0;
 	while(1){
 		if(getpid()==1){
-			fork();
-			if(getpid() == 2){
-				while(1){
-					scanf("%10s", ch);
-					if(strCmp(ch,"ls",2)==0){
-						exec("/usr/ls", 0);
-					}
-					else if(strCmp(ch,"cat",3)==0){
-						exec("/usr/cat", 0);
-					}
-					else if(strCmp(ch,"open",4)==0){
-						exec("/usr/open", 0);
-					}
-					else if(strCmp(ch,"rm",2)==0){
-						exec("/usr/rm", 0);
-					}
+			ret = fork();
+			if(ret == 2){
+				scanf("%10s", ch);
+				printf("ch=%s\n",ch);
+				if(strCmp(ch,"ls",2)==0){
+					exec("/usr/ls", 0);
 				}
-				
+				else if(strCmp(ch,"cat",3)==0){
+					exec("/usr/cat", 0);
+				}
 			}
 		}	
+		else break;
 	}
 	
 	exit();

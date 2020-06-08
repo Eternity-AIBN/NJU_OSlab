@@ -7,12 +7,11 @@ os.img:
 	@cd ls; make
 	@cd cat; make
 	@cd open; make
-	@cd rm; make
 	@cd app; make
 	@#cat bootloader/bootloader.bin kernel/kMain.bin app/uMain.bin > os.img
 	@#cat bootloader/bootloader.bin kernel/kMain.bin app/uMain.elf > os.img
 	@#cat bootloader/bootloader.bin kernel/kMain.elf app/uMain.elf > os.img
-	@./utils/genFS/genFS app/uMain.elf open/open.elf ls/ls.elf cat/cat.elf rm/rm.elf
+	@./utils/genFS/genFS app/uMain.elf open/open.elf ls/ls.elf cat/cat.elf 
 	cat bootloader/bootloader.bin kernel/kMain.elf fs.bin > os.img
 
 play: os.img
@@ -28,6 +27,5 @@ clean:
 	@cd ls; make clean
 	@cd cat; make clean
 	@cd open; make clean
-	@cd rm; make clean
 	@cd app; make clean
 	rm -f fs.bin os.img

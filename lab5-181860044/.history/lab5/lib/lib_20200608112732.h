@@ -74,6 +74,6 @@ int ls(char *path);
 
 int cat(char *path);
 
-int strCmp(const char *srcString, const char *destString, int size);
+
 
 #endif

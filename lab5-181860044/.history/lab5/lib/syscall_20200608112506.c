@@ -712,7 +712,6 @@ int cat(char *destFilePath) {
     return 0;
 }
 
-
 int strCmp (const char *srcString, const char *destString, int size) { // compre first 'size' bytes
     int i = 0;
     while (i != size) {
